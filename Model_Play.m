@@ -10,9 +10,9 @@ background = ones(100,100);
 embed      = ones(10,10)*10 + 1;
 [l_1, l_2] = size(embed);
 % center embed at (50,50)
-y_start = 50 - floor(l_1/2);
-x_start = 50 - floor(l_2/2);
-background(y_start:y_start+l_1-1, x_start:x_start+l_2-1) = embed;
+% y_start = 50 - floor(l_1/2);
+% x_start = 50 - floor(l_2/2);
+% background(y_start:y_start+l_1-1, x_start:x_start+l_2-1) = embed;
 img = background;
 
 % 2) Define center of all ROIs
@@ -276,19 +276,20 @@ for k = 1:numRandomCircles
     background(thisMask) = background(thisMask) + rand()*10;
 end
 
-embed = ones(10,10)*10 + 1;
-[l1, ~] = size(embed);
-yStart = round(imgSize/2 - l1/2);
-xStart = round(imgSize/2 - l1/2);
-background(yStart:yStart+l1-1, xStart:xStart+l1-1) = embed;
+% embed = ones(10,10)*10 + 1;
+% [l1, ~] = size(embed);
+% yStart = round(imgSize/2 - l1/2);
+% xStart = round(imgSize/2 - l1/2);
+% background(yStart:yStart+l1-1, xStart:xStart+l1-1) = embed;
 
 img = background;
 
 % 2) Define 6 nested circular ROIs
+l1 = 10 ;
 xcenter = imgSize/2;
 ycenter = imgSize/2;
 width_s = l1 * 1.1;
-radii   = width_s * linspace(2.5,3,6);  % six radii
+radii   = width_s * 2.5 % linspace(2.5,3,6);  % six radii
 [X, Y] = meshgrid(1:imgSize, 1:imgSize);
 numROIs = numel(radii);
 
@@ -362,16 +363,16 @@ end
 
 clear; close all; clc;
 
-% 1) Initialize toy image with random circles + central embed
-imgSize = 100;
+% 1) Initialize toy image with random circles0
+imgSize = 4096;
 background = ones(imgSize);  % base level = 1
 
 % Precompute grid for drawing circles
 [Xbg, Ybg] = meshgrid(1:imgSize, 1:imgSize);
 
 % Generate random circle parameters
-numRandomCircles = 20;
-initialRadius    = 5;                        % start every circle at 5 px
+numRandomCircles = 100;
+initialRadius    = 123;                        % start every circle at 5 px
 cx    = randi(imgSize, [1, numRandomCircles]);  
 cy    = randi(imgSize, [1, numRandomCircles]);
 r0    = ones(1, numRandomCircles) * initialRadius;  
@@ -388,7 +389,7 @@ img = background;  % working image
 % 2) Define 6 nested circular ROIs (fixed)
 xcenter = imgSize/2;
 ycenter = imgSize/2;
-width_s = 10 * 1.1;                      
+width_s = 400 * 1.1;                      
 radii   = width_s * linspace(2.5, 3, 6); % six radii, closely spaced
 
 % Precompute grid for ROI masks
@@ -400,7 +401,7 @@ numIterations = 1000;
 yIntercepts   = nan(1, numIterations);
 
 % 4) Set growth parameters for random circles
-growthRate     = 0.01;    % px per iteration
+growthRate     = width_s*0.01;    % px per iteration
 brightnessStep = 0.1;     % counts added per iteration inside circles
 
 % 5) Create figure with two subplots
@@ -468,3 +469,243 @@ for iter = 1:numIterations
 end
 
 % After loop, yIntercepts contains the evolution of the background intercept.
+
+
+
+%% Actual Image Size - Slow 
+
+clear; close all; clc;
+
+% 1) Initialize toy image with random circles
+imgSize = 4096;
+background = ones(imgSize)*1E-5;
+
+[Xbg, Ybg] = meshgrid(1:imgSize, 1:imgSize);
+numRandomCircles = 100;
+initialRadius    = 123;
+cx = randi(imgSize, [1,numRandomCircles]);
+cy = randi(imgSize, [1,numRandomCircles]);
+r0 = ones(1,numRandomCircles)*initialRadius;
+initAmp = rand(1,numRandomCircles)*10;
+
+for k = 1:numRandomCircles
+    mask0 = (Xbg-cx(k)).^2 + (Ybg-cy(k)).^2 <= r0(k)^2;
+    background(mask0) = background(mask0) + initAmp(k);
+end
+
+img = background;
+
+% 2) Define nested circular ROIs
+xcenter = imgSize/2;
+ycenter = imgSize/2;
+width_s = 400 * 1.1;
+radii   = width_s * linspace(2.5,3,6);
+[X, Y]  = meshgrid(1:imgSize,1:imgSize);
+numROIs = numel(radii);
+
+% 3) Preallocate
+numIterations = 1000;
+yIntercepts   = nan(1,numIterations);
+
+% 4) Growth params
+growthRate     = width_s*0.01;
+brightnessStep = 0.1;
+
+% 5) Create figure with 3 subplots
+hFig = figure('Name','Growing Circles & ROI Fit','NumberTitle','off',...
+              'Position',[200 200 1200 400]);
+
+% a) ROI image
+hAxImg = subplot(1,3,1);
+hImg = imagesc(img,'Parent',hAxImg);
+colormap(hAxImg,'gray');
+axis(hAxImg,'image','off'); hold(hAxImg,'on');
+theta = linspace(0,2*pi,360);
+colorsROI = {'b--','r--','g--','y--','m--','c--'};
+for i=1:numROIs
+    xC = xcenter + radii(i)*cos(theta);
+    yC = ycenter + radii(i)*sin(theta);
+    plot(hAxImg, xC, yC, colorsROI{i}, 'LineWidth',2);
+end
+title(hAxImg,'Nested Circular ROIs','FontSize',14);
+
+% b) Y-intercept vs iteration
+hAxPlot = subplot(1,3,2);
+hPlot   = plot(hAxPlot, nan, nan, 'b-','LineWidth',1.5);
+xlabel(hAxPlot,'Iteration','FontSize',12);
+ylabel(hAxPlot,'Y-Intercept','FontSize',12);
+title(hAxPlot,'Evolution of Y-Intercept','FontSize',14);
+xlim(hAxPlot,[1 numIterations]);
+grid(hAxPlot,'on'); hold(hAxPlot,'on');
+
+% c) Sums vs area + fit
+hAxSA   = subplot(1,3,3);
+hSA_pts = plot(hAxSA, nan, nan, 'k^','MarkerSize',8,'LineWidth',1.5);
+hold(hAxSA,'on');
+hSA_line= plot(hAxSA, nan, nan, 'r-','LineWidth',2);
+xlabel(hAxSA,'ROI area (pixels)','FontSize',14);
+ylabel(hAxSA,'Sum of counts','FontSize',14);
+title(hAxSA,'Sum vs. Area','FontSize',14);
+legend(hAxSA,'Measured','Linear fit','Location','NorthWest');
+grid(hAxSA,'on');
+
+% 6) Main loop
+for iter = 1:numIterations
+    % update circles
+    currentMask = false(imgSize);
+    for k = 1:numRandomCircles
+        rCurr = r0(k) + growthRate*iter;
+        m = (Xbg-cx(k)).^2 + (Ybg-cy(k)).^2 <= rCurr^2;
+        currentMask = currentMask | m;
+    end
+    img(currentMask) = img(currentMask) + brightnessStep;
+
+    % compute sums & areas
+    sums  = zeros(1,numROIs);
+    areas = sums;
+    for i = 1:numROIs
+        maskROI   = (X-xcenter).^2 + (Y-ycenter).^2 <= radii(i)^2;
+        sums(i)   = sum(img(maskROI));
+        areas(i)  = sum(maskROI(:));
+    end
+
+    % fit line
+    coeffs            = polyfit(areas, sums, 1);
+    m                 = coeffs(1);
+    b                 = coeffs(2);
+    fitLine           = m*areas + b;
+    yIntercepts(iter) = b;
+
+    % refresh plots
+    set(hImg,   'CData', img);
+    set(hPlot, 'XData', 1:iter,       'YData', yIntercepts(1:iter));
+    set(hSA_pts,'XData', areas,       'YData', sums);
+    set(hSA_line,'XData', areas,      'YData', fitLine);
+    title(hAxSA, sprintf('Sum vs. Area (b=%.1f)', b), 'FontSize',14);
+
+    drawnow;
+end
+
+
+%% USING Paralell processing
+
+clear; close all; clc;
+
+% 1) Initialize toy image with random circles
+imgSize = 4096;
+background = ones(imgSize);
+
+[Xbg, Ybg] = meshgrid(1:imgSize, 1:imgSize);
+numRandomCircles = 100;
+initialRadius    = 123;
+cx = randi(imgSize, [1,numRandomCircles]);
+cy = randi(imgSize, [1,numRandomCircles]);
+r0 = ones(1,numRandomCircles)*initialRadius;
+initAmp = rand(1,numRandomCircles)*10;
+
+for k = 1:numRandomCircles
+    mask0 = (Xbg-cx(k)).^2 + (Ybg-cy(k)).^2 <= r0(k)^2;
+    background(mask0) = background(mask0) + initAmp(k);
+end
+
+img = background;
+
+% 2) Define nested circular ROIs
+xcenter = imgSize/2;
+ycenter = imgSize/2;
+width_s = 400 * 1.1;
+radii   = width_s * linspace(2.5,3,6);
+[X, Y]  = meshgrid(1:imgSize,1:imgSize);
+numROIs = numel(radii);
+
+% 3) Preallocate
+numIterations = 1000;
+yIntercepts   = nan(1,numIterations);
+
+% 4) Growth params
+growthRate     = width_s*0.01;
+brightnessStep = 0.1;
+
+% 5) Prepare figure with 3 subplots
+hFig = figure('Name','Growing Circles & ROI Fit','NumberTitle','off',...
+              'Position',[200 200 1200 400]);
+
+% a) ROI image
+hAxImg = subplot(1,3,1);
+hImg = imagesc(img,'Parent',hAxImg);
+colormap(hAxImg,'gray');
+axis(hAxImg,'image','off'); hold(hAxImg,'on');
+theta = linspace(0,2*pi,360);
+colorsROI = {'b--','r--','g--','y--','m--','c--'};
+for i = 1:numROIs
+    xC = xcenter + radii(i)*cos(theta);
+    yC = ycenter + radii(i)*sin(theta);
+    plot(hAxImg, xC, yC, colorsROI{i}, 'LineWidth',2);
+end
+title(hAxImg,'Nested Circular ROIs','FontSize',14);
+
+% b) Y-intercept vs iteration
+hAxPlot = subplot(1,3,2);
+hPlot   = plot(hAxPlot, nan, nan, 'b-','LineWidth',1.5);
+xlabel(hAxPlot,'Iteration','FontSize',12);
+ylabel(hAxPlot,'Y-Intercept','FontSize',12);
+title(hAxPlot,'Evolution of Y-Intercept','FontSize',14);
+xlim(hAxPlot,[1 numIterations]);
+grid(hAxPlot,'on'); hold(hAxPlot,'on');
+
+% c) Sums vs area + fit
+hAxSA    = subplot(1,3,3);
+hSA_pts  = plot(hAxSA, nan, nan, 'k^','MarkerSize',8,'LineWidth',1.5);
+hold(hAxSA,'on');
+hSA_line = plot(hAxSA, nan, nan, 'r-','LineWidth',2);
+xlabel(hAxSA,'ROI area (pixels)','FontSize',14);
+ylabel(hAxSA,'Sum of counts','FontSize',14);
+title(hAxSA,'Sum vs. Area','FontSize',14);
+legend(hAxSA,'Measured','Linear fit','Location','NorthWest');
+grid(hAxSA,'on');
+
+% 6) Main loop with parfor mask build
+for iter = 1:numIterations
+    % Build mask indices in parallel
+    idxList = cell(numRandomCircles,1);
+    parfor k = 1:numRandomCircles
+        rCurr = r0(k) + growthRate * iter;
+        localMask = (Xbg-cx(k)).^2 + (Ybg-cy(k)).^2 <= rCurr^2;
+        idxList{k} = find(localMask);
+    end
+    % Union all indices into one mask
+    allIdx = vertcat(idxList{:});
+    maskAll = false(imgSize);
+    maskAll(allIdx) = true;
+
+    % Increase brightness inside growing circles
+    img(maskAll) = img(maskAll) + brightnessStep;
+
+    % Compute ROI sums & areas
+    sums  = zeros(1,numROIs);
+    areas = sums;
+    for i = 1:numROIs
+        maskROI   = (X-xcenter).^2 + (Y-ycenter).^2 <= radii(i)^2;
+        sums(i)   = sum(img(maskROI));
+        areas(i)  = sum(maskROI(:));
+    end
+
+    % Fit line
+    coeffs            = polyfit(areas, sums, 1);
+    m                 = coeffs(1);
+    b                 = coeffs(2);
+    fitLine           = m*areas + b;
+    yIntercepts(iter) = b;
+
+    % Refresh plots
+    set(hImg,    'CData', img);
+    set(hPlot,  'XData', 1:iter,        'YData', yIntercepts(1:iter));
+    set(hSA_pts,'XData', areas,        'YData', sums);
+    set(hSA_line,'XData', areas,       'YData', fitLine);
+    title(hAxSA, sprintf('Sum vs. Area (b=%.1f)', b), 'FontSize',14);
+
+    drawnow;
+end
+
+
+

@@ -68,12 +68,13 @@ function results = runDynamicTIS(params, doPlot)
     mask = (Xbg-cx(k)).^2 + (Ybg-cy(k)).^2 <= IR^2;
     background(mask) = background(mask) + a0(k);
   end
+
   % central embed
-  E = p.embedSize;
-  patch = ones(E)*10 + 1;
-  y0 = round(SZ/2 - E/2)+1;
-  x0 = round(SZ/2 - E/2)+1;
-  background(y0:y0+E-1, x0:x0+E-1) = patch;
+  % E = p.embedSize;
+  % patch = ones(E)*10 + 1;
+  % y0 = round(SZ/2 - E/2)+1;
+  % x0 = round(SZ/2 - E/2)+1;
+  % background(y0:y0+E-1, x0:x0+E-1) = patch;
 
   img = background;
 

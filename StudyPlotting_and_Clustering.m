@@ -1,52 +1,54 @@
 %% Plot 1: All y-intercept curves by experiment class
 %----------------------------------------------------
 
-% 1) Read summary to get grouping & isNegative stats
-opts = detectImportOptions('allExperiments_summary.tsv', ...
+
+% Update file paths to include the new directory
+basePath = '/Users/simon/Library/CloudStorage/GoogleDrive-simon.tait@ligo.org/My Drive/BackupFromDropbox/Fullerton_AAS/FullertonScatterometer/FullertonScatterometer/ModelResults/';
+opts = detectImportOptions(fullfile(basePath, 'allExperiments_summary.tsv'), ...
     'FileType','text','Delimiter','\t');
-T = readtable('allExperiments_summary.tsv', opts);
+T = readtable(fullfile(basePath, 'allExperiments_summary.tsv'), opts);
+
 % extract experiment class prefix before first underscore
 grp = cellfun(@(s) strtok(s,'_'), T.testName, 'UniformOutput',false);
 T.group = categorical(grp);
 classes = categories(T.group);
 
-% 2) Make 2×2 subplots
+% === Plot 1: All curves by class ===
 figure('Name','Y-Intercept Curves by Class','NumberTitle','off');
+
 for ci = 1:numel(classes)
     cls = classes{ci};
-    subplot(2,2,ci);
-    hold on;
+    idxRows = find(T.group == cls);         % summary rows for this class
+    nRows   = numel(idxRows);
     
-    % load that class's curves
-    fileName = sprintf('allExperiments_%sCurves.mat', lower(cls));
-    data = load(fileName,'allCurves');
-    curves = data.allCurves;
+    % Load curves for this class
+    matFile = sprintf('allExperiments_%sCurves.mat', lower(cls));
+    data = load(matFile, 'allCurves');
+    curves = data.allCurves;                 % cell array
+    nCurves = numel(curves);
     
-    % plot each run with color based on isNegative
-    nRuns = numel(curves);
-    idx = (T.group == cls); % indices for this class
-    isNeg = T.isNegative(idx); % isNegative values for this class
-    
-    for k = 1:nRuns
-        if isNeg(k)
-            plot(curves{k}, 'Color', 'r', 'LineWidth', 1); % red for negative
-        else
-            plot(curves{k}, 'Color', 'b', 'LineWidth', 1); % blue for positive
-        end
+    % How many to plot?
+    nPlot = min(nRows, nCurves);
+    if nPlot < nRows || nPlot < nCurves
+      warning('Class %s: %d rows vs %d curves → plotting %d', ...
+        cls, nRows, nCurves, nPlot);
     end
     
-    % add legend for the first plot
-    if ci == 1
-        legend({'Negative', 'Positive'}, 'Location', 'best');
+    % Subplot
+    ax = subplot(2,2,ci); hold(ax,'on');    
+    cmap = lines(nPlot);
+    for k = 1:nPlot
+      plot(ax, curves{k}, 'Color', cmap(k,:), 'LineWidth', 1);
     end
-     
-    % compute how many runs ended negative
-    idx = (T.group == cls);
-    nNeg = sum(T.isNegative(idx));
-    title(sprintf('%s  (neg: %d/%d)', cls, nNeg, sum(idx)), 'Interpreter','none');
-    xlabel('Iteration'); ylabel('Y-Intercept');
-    grid on; hold off;
+    
+    % Negative count
+    negCount = sum(T.isNegative(idxRows));
+    title(ax, sprintf('%s   (neg: %d/%d)', cls, negCount, nRows), ...
+          'Interpreter','none');
+    xlabel(ax,'Iteration'); ylabel(ax,'Y-Intercept');
+    grid(ax,'on');
 end
+
 
 %% Plot 2: Final-intercept vs. class, colored by isNegative
 %---------------------------------------------------------
